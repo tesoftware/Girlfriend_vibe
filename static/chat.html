@@ -589,7 +589,7 @@
                                 {chatMessages.map((msg, idx) => (
                                     <div key={idx} className={`chat-message ${msg.role}`}>
                                         <div className="chat-avatar">
-                                            <img src={msg.role === 'user' ? '/me.jpg' : '/xiaoyu.jpg'} alt={msg.role === 'user' ? 'Me' : 'Xiaoyu'} />
+                                            <img src={msg.role === 'user' ? '/me.jpg' : '/she.jpg'} alt={msg.role === 'user' ? 'Me' : 'She'} />
                                         </div>
                                         <div className="chat-bubble-wrapper">
                                             <div className={`chat-bubble ${msg.role}`}>{msg.content}</div>
@@ -603,7 +603,7 @@
                         {chatLoading && (
                             <div className="chat-message assistant">
                                 <div className="chat-avatar">
-                                    <img src="/xiaoyu.jpg" alt="Xiaoyu" />
+                                    <img src="/she.jpg" alt="She" />
                                 </div>
                                 <div className="chat-bubble-wrapper">
                                     <div className="chat-bubble assistant">
