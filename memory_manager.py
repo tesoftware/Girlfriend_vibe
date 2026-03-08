@@ -132,10 +132,6 @@ class MemoryManager:
                 soul_content += content
                 soul_content += "\n\n"
 
-        soul_path = os.path.join(self.memories_dir, "soul.md")
-        with open(soul_path, "w", encoding="utf-8") as f:
-            f.write(soul_content)
-
         return soul_content
 
     def get_category_info(self, category_id):

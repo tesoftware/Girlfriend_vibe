@@ -236,7 +236,7 @@
                 settings: {
                     title: '设置',
                     llmProvider: 'LLM 提供商',
-                    apiKeyNote: 'API Key 在 .env 文件中配置，请直接编辑该文件更新密钥。',
+                    apiKeyNote: 'API Key、Ollama 的 OLLAMA_BASE_URL/OLLAMA_MODEL、自定义模型的 CUSTOM_BASEURL/CUSTOM_APIKEY/CUSTOM_MODEL 均在 .env 中配置。',
                 },
                 content: {
                     noContent: '暂无内容。使用 AI 生成或手动添加。',
@@ -318,7 +318,7 @@
                 settings: {
                     title: 'Settings',
                     llmProvider: 'LLM Provider',
-                    apiKeyNote: 'API Keys are configured in the .env file. Please edit the file directly to update keys.',
+                    apiKeyNote: 'API keys, Ollama (OLLAMA_BASE_URL, OLLAMA_MODEL), and custom model (CUSTOM_BASEURL, CUSTOM_APIKEY, CUSTOM_MODEL) are set in .env.',
                 },
                 content: {
                     noContent: 'No content yet. Use AI to generate or add manually.',
@@ -551,8 +551,14 @@
                     });
                     const data = await res.json();
                     if (data.success) {
+                        const blob = new Blob([data.content], { type: 'text/markdown;charset=utf-8' });
+                        const url = URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = 'soul.md';
+                        a.click();
+                        URL.revokeObjectURL(url);
                         message.success(t.messages.exportSuccess);
-                        setAiOutput(data.content);
                     } else {
                         message.error(data.error || t.messages.requestFailed);
                     }
@@ -870,6 +876,7 @@
                                     <Radio value="openai">OpenAI</Radio>
                                     <Radio value="anthropic">Anthropic</Radio>
                                     <Radio value="ollama">Ollama</Radio>
+                                    <Radio value="custom">{lang === 'zh' ? '自定义' : 'Custom'}</Radio>
                                 </Radio.Group>
                             </Form.Item>
                             <Form.Item>

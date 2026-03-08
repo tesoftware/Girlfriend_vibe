@@ -19,9 +19,10 @@
         "model": "claude-3-5-sonnet-20241022"
       },
       "ollama": {
-        "model": "goekdenizguelmez/JOSIEFIED-Qwen3:8b-fp16",
-        "base_url": "http://192.168.3.41:11434"
-      }
+        "model": "llama3.2",
+        "base_url": "http://127.0.0.1:11434"
+      },
+      "custom": {}
     }
   },
   "memory_files": [

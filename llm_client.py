@@ -32,6 +32,8 @@ class LLMClient:
             return self._chat_anthropic(prompt, system_prompt)
         elif self.active_provider == "ollama":
             return self._chat_ollama(prompt, system_prompt)
+        elif self.active_provider == "custom":
+            return self._chat_custom(prompt, system_prompt)
         else:
             raise ValueError(f"Unknown provider: {self.active_provider}")
 
@@ -150,12 +152,58 @@ class LLMClient:
 
         return result["content"][0]["text"]
 
-    def _chat_ollama(self, prompt, system_prompt=None):
-        """Use requests to call Ollama API"""
-        provider_config = self.config["llm"]["providers"]["ollama"]
-        model = provider_config.get("model", "goekdenizguelmez/JOSIEFIED-Qwen3:8b-fp16")
-        base_url = provider_config.get("base_url", "http://192.168.3.41:11434")
+    def _chat_custom(self, prompt, system_prompt=None):
+        """自定义大模型，从 .env 读取 CUSTOM_BASEURL、CUSTOM_APIKEY、CUSTOM_MODEL，使用 OpenAI 兼容接口"""
+        load_dotenv(override=True)
+        base_url = (os.getenv("CUSTOM_BASEURL") or "").rstrip("/")
+        api_key = os.getenv("CUSTOM_APIKEY") or ""
+        model = os.getenv("CUSTOM_MODEL") or ""
 
+        if not base_url or not model:
+            raise ValueError("请在 .env 中配置 CUSTOM_BASEURL 和 CUSTOM_MODEL")
+        if not api_key:
+            raise ValueError("请在 .env 中配置 CUSTOM_APIKEY")
+
+        url = f"{base_url}/chat/completions"
+
+        headers = {
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json",
+        }
+
+        messages = []
+        if system_prompt:
+            messages.append({"role": "system", "content": system_prompt})
+        messages.append({"role": "user", "content": prompt})
+
+        payload = {
+            "model": model,
+            "messages": messages,
+            "temperature": 0.7,
+            "max_tokens": 2000,
+        }
+
+        response = requests.post(url, headers=headers, json=payload)
+        response.raise_for_status()
+        result = response.json()
+
+        if "choices" in result and len(result["choices"]) > 0:
+            return result["choices"][0]["message"]["content"]
+        if "error" in result:
+            raise ValueError(f"Custom API Error: {result['error']}")
+        raise ValueError(f"Unexpected response format: {result}")
+
+    def _chat_ollama(self, prompt, system_prompt=None):
+        """Use requests to call Ollama API，URL 与模型从 .env 的 OLLAMA_BASE_URL、OLLAMA_MODEL 读取，未设置时回退到 config.json"""
+        load_dotenv(override=True)
+        base_url = os.getenv("OLLAMA_BASE_URL") or ""
+        model = os.getenv("OLLAMA_MODEL") or ""
+        if not base_url or not model:
+            provider_config = self.config["llm"]["providers"].get("ollama", {})
+            base_url = base_url or provider_config.get("base_url", "http://127.0.0.1:11434")
+            model = model or provider_config.get("model", "llama3.2")
+
+        base_url = base_url.rstrip("/")
         url = f"{base_url}/api/chat"
 
         headers = {
