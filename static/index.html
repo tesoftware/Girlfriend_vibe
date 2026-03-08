@@ -1,0 +1,897 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Memory Workshop</title>
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://unpkg.com/dayjs@1.11.10/dayjs.min.js"></script>
+    <link rel="stylesheet" href="https://unpkg.com/antd@5.12.0/dist/reset.css">
+    <script src="https://unpkg.com/antd@5.12.0/dist/antd.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Microsoft YaHei', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        #root {
+            min-height: 100vh;
+        }
+        .app-container {
+            display: flex;
+            min-height: 100vh;
+        }
+        .sidebar {
+            width: 220px;
+            background: rgba(255, 255, 255, 0.95);
+            padding: 20px;
+            box-shadow: 2px 0 10px rgba(0, 0, 0, 0.1);
+        }
+        .sidebar-title {
+            font-size: 20px;
+            font-weight: bold;
+            color: #667eea;
+            margin-bottom: 24px;
+            text-align: center;
+        }
+        .main-content {
+            flex: 1;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+        .header-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: rgba(255, 255, 255, 0.95);
+            padding: 12px 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+        .ai-output-area {
+            flex: 1;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            overflow-y: auto;
+            min-height: 200px;
+        }
+        .control-panel {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            background: rgba(255, 255, 255, 0.95);
+            padding: 12px 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            align-items: center;
+        }
+        .user-input-area {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+        .menu-item {
+            padding: 12px 16px;
+            margin-bottom: 8px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .menu-item:hover {
+            background: #f0f5ff;
+        }
+        .menu-item.active {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        .menu-item.chat-item {
+            background: linear-gradient(135deg, #ff6b9d 0%, #c44569 100%);
+            color: white;
+            font-weight: bold;
+        }
+        .menu-item.chat-item:hover {
+            opacity: 0.9;
+        }
+        .menu-item.chat-item.active {
+            background: linear-gradient(135deg, #ff6b9d 0%, #c44569 100%);
+            box-shadow: 0 4px 12px rgba(255, 107, 157, 0.4);
+        }
+        .menu-divider {
+            height: 1px;
+            background: #e8e8e8;
+            margin: 16px 0;
+        }
+        .timeline-container {
+            padding: 20px;
+        }
+        .timeline-item {
+            display: flex;
+            align-items: flex-start;
+            margin-bottom: 16px;
+        }
+        .timeline-date {
+            width: 80px;
+            font-weight: bold;
+            color: #667eea;
+        }
+        .timeline-dot {
+            width: 12px;
+            height: 12px;
+            background: #667eea;
+            border-radius: 50%;
+            margin: 4px 16px;
+        }
+        .timeline-title {
+            flex: 1;
+        }
+        .memory-content {
+            white-space: pre-wrap;
+            line-height: 1.8;
+        }
+        .settings-modal .ant-form-item {
+            margin-bottom: 16px;
+        }
+        .lang-switch {
+            cursor: pointer;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            background: #f0f0f0;
+            transition: all 0.3s;
+        }
+        .lang-switch:hover {
+            background: #e0e0e0;
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, createContext } = React;
+        const { 
+            Button, Menu, Input, Select, message, Modal, Form, 
+            Spin, Typography, Space, Divider, Card, Tag, Radio,
+            Timeline: AntTimeline, Empty, Dropdown
+        } = antd;
+        const { TextArea } = Input;
+        const { Title, Text, Paragraph } = Typography;
+
+        const API_BASE = '';
+
+        const i18n = {
+            zh: {
+                appTitle: '女友工坊',
+                menu: {
+                    basic: '基本设定',
+                    social: '社会关系',
+                    experience: '特殊经历',
+                    daily: '日常琐事',
+                    events: '事件记忆',
+                    preferences: '偏好习惯',
+                    values: '价值观',
+                    emotions: '情感模式',
+                    timeline: '时间线',
+                    consistency: '一致性检查',
+                    chat: '和TA聊天',
+                },
+                buttons: {
+                    settings: '设置',
+                    exportSoul: '导出 soul.md',
+                    aiAsk: 'AI 提问',
+                    generateMemory: '生成记忆',
+                    polish: '润色扩写',
+                    dialogueStyle: '对话风格',
+                    saveToCategory: '保存到分类',
+                    clearOutput: '清空输出',
+                    edit: '编辑',
+                    save: '保存',
+                    cancel: '取消',
+                    startCheck: '开始检查',
+                    testConnection: '测试连接',
+                    send: '发送',
+                    clearChat: '清空聊天',
+                },
+                messages: {
+                    loadFailed: '加载失败',
+                    requestFailed: '请求失败',
+                    enterKeywords: '请输入关键词或描述',
+                    enterTextToPolish: '请输入要润色的文本',
+                    noContentToSave: '没有内容可保存',
+                    savedSuccess: '保存成功',
+                    exportSuccess: 'soul.md 导出成功',
+                    settingsSaved: '设置已保存',
+                    connectionSuccess: '连接成功!',
+                    connectionFailed: '连接失败',
+                    memoryUpdated: '记忆已更新',
+                    chatCleared: '聊天记录已清空',
+                },
+                placeholders: {
+                    inputArea: '在此输入关键词、描述或回答...',
+                    chatInput: '说点什么吧...',
+                },
+                timeline: {
+                    title: '人生时间线',
+                    empty: '暂无时间线事件。请在"特殊经历"中添加，格式: ## YYYY-MM 标题',
+                },
+                consistency: {
+                    title: '记忆一致性检查',
+                    description: '点击下方按钮，让 AI 分析所有记忆文件中的矛盾之处。',
+                },
+                settings: {
+                    title: '设置',
+                    llmProvider: 'LLM 提供商',
+                    apiKeyNote: 'API Key 在 .env 文件中配置，请直接编辑该文件更新密钥。',
+                },
+                content: {
+                    noContent: '暂无内容。使用 AI 生成或手动添加。',
+                    editTitle: '编辑: ',
+                },
+                chat: {
+                    title: '',
+                    subtitle: '在线',
+                    welcome: '亲爱的，你来啦~ 今天想和我聊点什么呀？',
+                    welcomeTitle: '开始和TA聊天',
+                    welcomeDesc: '她一直在等你哦',
+                    typing: '正在输入',
+                    online: '在线',
+                    quickHello: '打个招呼',
+                    quickMiss: '我想你了',
+                    quickHow: '你在干嘛',
+                    quickLove: '我爱你',
+                },
+                language: '语言',
+            },
+            en: {
+                appTitle: 'Memory Workshop',
+                menu: {
+                    basic: 'Basic Settings',
+                    social: 'Social Relations',
+                    experience: 'Special Experience',
+                    daily: 'Daily Chores',
+                    events: 'Event Memory',
+                    preferences: 'Preferences',
+                    values: 'Values',
+                    emotions: 'Emotion Mode',
+                    timeline: 'Timeline',
+                    consistency: 'Consistency Check',
+                    chat: 'Chat with Xiaoyu',
+                },
+                buttons: {
+                    settings: 'Settings',
+                    exportSoul: 'Export soul.md',
+                    aiAsk: 'AI Ask',
+                    generateMemory: 'Generate Memory',
+                    polish: 'Polish',
+                    dialogueStyle: 'Dialogue Style',
+                    saveToCategory: 'Save to Category',
+                    clearOutput: 'Clear Output',
+                    edit: 'Edit',
+                    save: 'Save',
+                    cancel: 'Cancel',
+                    startCheck: 'Start Check',
+                    testConnection: 'Test Connection',
+                    send: 'Send',
+                    clearChat: 'Clear Chat',
+                },
+                messages: {
+                    loadFailed: 'Failed to load',
+                    requestFailed: 'Request failed',
+                    enterKeywords: 'Please enter keywords or description',
+                    enterTextToPolish: 'Please enter text to polish',
+                    noContentToSave: 'No content to save',
+                    savedSuccess: 'Saved successfully',
+                    exportSuccess: 'soul.md exported successfully',
+                    settingsSaved: 'Settings saved',
+                    connectionSuccess: 'Connection successful!',
+                    connectionFailed: 'Connection failed',
+                    memoryUpdated: 'Memory updated',
+                    chatCleared: 'Chat history cleared',
+                },
+                placeholders: {
+                    inputArea: 'Enter keywords, descriptions, or answers here...',
+                    chatInput: 'Type something...',
+                },
+                timeline: {
+                    title: 'Life Timeline',
+                    empty: 'No timeline events. Add events in Special Experience with format: ## YYYY-MM Title',
+                },
+                consistency: {
+                    title: 'Memory Consistency Check',
+                    description: 'Click the button below to let AI analyze all memory files for contradictions.',
+                },
+                settings: {
+                    title: 'Settings',
+                    llmProvider: 'LLM Provider',
+                    apiKeyNote: 'API Keys are configured in the .env file. Please edit the file directly to update keys.',
+                },
+                content: {
+                    noContent: 'No content yet. Use AI to generate or add manually.',
+                    editTitle: 'Edit: ',
+                },
+                chat: {
+                    title: 'Gu Xiaoyu',
+                    subtitle: 'Online',
+                    welcome: 'Hey darling~ What would you like to chat about today?',
+                    welcomeTitle: 'Start chatting with Xiaoyu',
+                    welcomeDesc: 'She has been waiting for you',
+                    typing: 'typing',
+                    online: 'Online',
+                    quickHello: 'Say hi',
+                    quickMiss: 'I miss you',
+                    quickHow: 'What are you doing',
+                    quickLove: 'I love you',
+                },
+                language: 'Language',
+            },
+        };
+
+        const LangContext = createContext();
+
+        function App() {
+            const [lang, setLang] = useState(() => {
+                return localStorage.getItem('app_lang') || 'zh';
+            });
+            const [activeMenu, setActiveMenu] = useState('basic');
+            const [memories, setMemories] = useState({});
+            const [memoryFiles, setMemoryFiles] = useState([]);
+            const [aiOutput, setAiOutput] = useState('');
+            const [userInput, setUserInput] = useState('');
+            const [loading, setLoading] = useState(false);
+            const [selectedCategory, setSelectedCategory] = useState('basic');
+            const [settingsVisible, setSettingsVisible] = useState(false);
+            const [config, setConfig] = useState(null);
+            const [timeline, setTimeline] = useState([]);
+            const [editMode, setEditMode] = useState(false);
+            const [editContent, setEditContent] = useState('');
+
+            const t = i18n[lang];
+
+            const switchLang = (newLang) => {
+                setLang(newLang);
+                localStorage.setItem('app_lang', newLang);
+            };
+
+            const MENU_ITEMS = [
+                { key: 'basic', label: t.menu.basic },
+                { key: 'social', label: t.menu.social },
+                { key: 'experience', label: t.menu.experience },
+                { key: 'daily', label: t.menu.daily },
+                { key: 'events', label: t.menu.events },
+                { key: 'preferences', label: t.menu.preferences },
+                { key: 'values', label: t.menu.values },
+                { key: 'emotions', label: t.menu.emotions },
+            ];
+
+            const TOOL_ITEMS = [
+                { key: 'timeline', label: t.menu.timeline },
+                { key: 'consistency', label: t.menu.consistency },
+            ];
+
+            useEffect(() => {
+                loadMemories();
+                loadConfig();
+            }, []);
+
+            useEffect(() => {
+                if (activeMenu === 'timeline') {
+                    loadTimeline();
+                }
+            }, [activeMenu]);
+
+            const loadMemories = async () => {
+                try {
+                    const res = await fetch(`${API_BASE}/api/memories`);
+                    const data = await res.json();
+                    setMemories(data.contents);
+                    setMemoryFiles(data.files);
+                } catch (err) {
+                    message.error(t.messages.loadFailed);
+                }
+            };
+
+            const loadConfig = async () => {
+                try {
+                    const res = await fetch(`${API_BASE}/api/config`);
+                    const data = await res.json();
+                    setConfig(data);
+                } catch (err) {
+                    message.error(t.messages.loadFailed);
+                }
+            };
+
+            const loadTimeline = async () => {
+                try {
+                    const res = await fetch(`${API_BASE}/api/timeline`);
+                    const data = await res.json();
+                    setTimeline(data.timeline);
+                } catch (err) {
+                    message.error(t.messages.loadFailed);
+                }
+            };
+
+            const handleAskQuestion = async () => {
+                setLoading(true);
+                try {
+                    const res = await fetch(`${API_BASE}/api/ask-question`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ category: selectedCategory }),
+                    });
+                    const data = await res.json();
+                    if (data.success) {
+                        setAiOutput(data.question);
+                    } else {
+                        message.error(data.error || t.messages.requestFailed);
+                    }
+                } catch (err) {
+                    message.error(t.messages.requestFailed);
+                } finally {
+                    setLoading(false);
+                }
+            };
+
+            const handleGenerateMemory = async () => {
+                if (!userInput.trim()) {
+                    message.warning(t.messages.enterKeywords);
+                    return;
+                }
+                setLoading(true);
+                try {
+                    const res = await fetch(`${API_BASE}/api/generate-memory`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ 
+                            prompt: userInput, 
+                            category: selectedCategory 
+                        }),
+                    });
+                    const data = await res.json();
+                    if (data.success) {
+                        setAiOutput(data.memory);
+                    } else {
+                        message.error(data.error || t.messages.requestFailed);
+                    }
+                } catch (err) {
+                    message.error(t.messages.requestFailed);
+                } finally {
+                    setLoading(false);
+                }
+            };
+
+            const handlePolish = async () => {
+                if (!userInput.trim()) {
+                    message.warning(t.messages.enterTextToPolish);
+                    return;
+                }
+                setLoading(true);
+                try {
+                    const res = await fetch(`${API_BASE}/api/polish`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ text: userInput }),
+                    });
+                    const data = await res.json();
+                    if (data.success) {
+                        setAiOutput(data.polished);
+                    } else {
+                        message.error(data.error || t.messages.requestFailed);
+                    }
+                } catch (err) {
+                    message.error(t.messages.requestFailed);
+                } finally {
+                    setLoading(false);
+                }
+            };
+
+            const handleSaveMemory = async () => {
+                if (!aiOutput.trim()) {
+                    message.warning(t.messages.noContentToSave);
+                    return;
+                }
+                try {
+                    const res = await fetch(`${API_BASE}/api/memories/${selectedCategory}`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ content: aiOutput }),
+                    });
+                    const data = await res.json();
+                    if (data.success) {
+                        message.success(t.messages.savedSuccess);
+                        loadMemories();
+                        setAiOutput('');
+                        setUserInput('');
+                    } else {
+                        message.error(data.error || t.messages.requestFailed);
+                    }
+                } catch (err) {
+                    message.error(t.messages.requestFailed);
+                }
+            };
+
+            const handleCheckConsistency = async () => {
+                setLoading(true);
+                try {
+                    const res = await fetch(`${API_BASE}/api/check-consistency`, {
+                        method: 'POST',
+                    });
+                    const data = await res.json();
+                    if (data.success) {
+                        setAiOutput(data.result);
+                    } else {
+                        message.error(data.error || t.messages.requestFailed);
+                    }
+                } catch (err) {
+                    message.error(t.messages.requestFailed);
+                } finally {
+                    setLoading(false);
+                }
+            };
+
+            const handleExportSoul = async () => {
+                setLoading(true);
+                try {
+                    const res = await fetch(`${API_BASE}/api/export-soul`, {
+                        method: 'POST',
+                    });
+                    const data = await res.json();
+                    if (data.success) {
+                        message.success(t.messages.exportSuccess);
+                        setAiOutput(data.content);
+                    } else {
+                        message.error(data.error || t.messages.requestFailed);
+                    }
+                } catch (err) {
+                    message.error(t.messages.requestFailed);
+                } finally {
+                    setLoading(false);
+                }
+            };
+
+            const handleGenerateDialogueStyle = async () => {
+                setLoading(true);
+                try {
+                    const res = await fetch(`${API_BASE}/api/generate-dialogue-style`, {
+                        method: 'POST',
+                    });
+                    const data = await res.json();
+                    if (data.success) {
+                        setAiOutput(data.dialogue_style);
+                    } else {
+                        message.error(data.error || t.messages.requestFailed);
+                    }
+                } catch (err) {
+                    message.error(t.messages.requestFailed);
+                } finally {
+                    setLoading(false);
+                }
+            };
+
+            const handleSaveSettings = async (values) => {
+                try {
+                    const res = await fetch(`${API_BASE}/api/provider`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ provider: values.provider }),
+                    });
+                    const data = await res.json();
+                    if (data.success) {
+                        message.success(t.messages.settingsSaved);
+                        setSettingsVisible(false);
+                        loadConfig();
+                    }
+                } catch (err) {
+                    message.error(t.messages.requestFailed);
+                }
+            };
+
+            const handleTestConnection = async () => {
+                setLoading(true);
+                try {
+                    const res = await fetch(`${API_BASE}/api/test-connection`, {
+                        method: 'POST',
+                    });
+                    const data = await res.json();
+                    if (data.success) {
+                        message.success(t.messages.connectionSuccess);
+                    } else {
+                        message.error(data.message || t.messages.connectionFailed);
+                    }
+                } catch (err) {
+                    message.error(t.messages.connectionFailed);
+                } finally {
+                    setLoading(false);
+                }
+            };
+
+            const handleEditMemory = () => {
+                const content = memories[activeMenu] || '';
+                setEditContent(content);
+                setEditMode(true);
+            };
+
+            const handleSaveEdit = async () => {
+                try {
+                    const res = await fetch(`${API_BASE}/api/memories/${activeMenu}`, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ content: editContent }),
+                    });
+                    const data = await res.json();
+                    if (data.success) {
+                        message.success(t.messages.memoryUpdated);
+                        setEditMode(false);
+                        loadMemories();
+                    }
+                } catch (err) {
+                    message.error(t.messages.requestFailed);
+                }
+            };
+
+            const getLocalizedFileName = (fileId) => {
+                return t.menu[fileId] || fileId;
+            };
+
+            const openChatWindow = async () => {
+                try {
+                    const res = await fetch(`${API_BASE}/api/soul-name`);
+                    const data = await res.json();
+                    const soulName = data.soul_name;
+                    
+                    if (!soulName || soulName.trim() === '') {
+                        message.warning('请先编辑"基本设定"，填写姓名信息后再开始聊天');
+                        setActiveMenu('basic');
+                        return;
+                    }
+                    
+                    const width = 420;
+                    const height = 700;
+                    const left = (window.screen.width - width) / 2;
+                    const top = (window.screen.height - height) / 2;
+                    window.open(
+                        '/chat',
+                        'chat_window',
+                        `width=${width},height=${height},left=${left},top=${top},resizable=yes,scrollbars=no,toolbar=no,menubar=no,location=no,status=no`
+                    );
+                } catch (err) {
+                    message.error('检查配置失败，请稍后重试');
+                }
+            };
+
+            const renderContent = () => {
+                if (activeMenu === 'timeline') {
+                    return (
+                        <div className="timeline-container">
+                            <Title level={4}>{t.timeline.title}</Title>
+                            {timeline.length === 0 ? (
+                                <Empty description={t.timeline.empty} />
+                            ) : (
+                                <AntTimeline
+                                    items={timeline.map(item => ({
+                                        color: 'purple',
+                                        children: (
+                                            <div>
+                                                <Tag color="purple">{item.date}</Tag>
+                                                <Text strong>{item.title}</Text>
+                                            </div>
+                                        ),
+                                    }))}
+                                />
+                            )}
+                        </div>
+                    );
+                }
+
+                if (activeMenu === 'consistency') {
+                    return (
+                        <div style={{ padding: 20 }}>
+                            <Title level={4}>{t.consistency.title}</Title>
+                            <Paragraph>
+                                {t.consistency.description}
+                            </Paragraph>
+                            <Button 
+                                type="primary" 
+                                onClick={handleCheckConsistency}
+                                loading={loading}
+                            >
+                                {t.buttons.startCheck}
+                            </Button>
+                        </div>
+                    );
+                }
+
+                const currentFileName = getLocalizedFileName(activeMenu);
+                const content = memories[activeMenu] || '';
+
+                if (editMode) {
+                    return (
+                        <div style={{ padding: 20 }}>
+                            <Title level={4}>{t.content.editTitle}{currentFileName}</Title>
+                            <TextArea
+                                value={editContent}
+                                onChange={e => setEditContent(e.target.value)}
+                                rows={15}
+                                style={{ marginBottom: 16 }}
+                            />
+                            <Space>
+                                <Button type="primary" onClick={handleSaveEdit}>{t.buttons.save}</Button>
+                                <Button onClick={() => setEditMode(false)}>{t.buttons.cancel}</Button>
+                            </Space>
+                        </div>
+                    );
+                }
+
+                return (
+                    <div style={{ padding: 20 }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+                            <Title level={4} style={{ margin: 0 }}>{currentFileName}</Title>
+                            <Button onClick={handleEditMemory}>{t.buttons.edit}</Button>
+                        </div>
+                        <div className="memory-content">
+                            {content || <Text type="secondary">{t.content.noContent}</Text>}
+                        </div>
+                    </div>
+                );
+            };
+
+            const langMenuItems = [
+                { key: 'zh', label: '中文' },
+                { key: 'en', label: 'English' },
+            ];
+
+            return (
+                <div className="app-container">
+                    <div className="sidebar">
+                        <div className="sidebar-title">{t.appTitle}</div>
+                        
+                        <div
+                            className="menu-item chat-item"
+                            onClick={openChatWindow}
+                        >
+                            {t.menu.chat}
+                        </div>
+
+                        <div className="menu-divider" />
+                        
+                        {MENU_ITEMS.map(item => (
+                            <div
+                                key={item.key}
+                                className={`menu-item ${activeMenu === item.key ? 'active' : ''}`}
+                                onClick={() => { setActiveMenu(item.key); setEditMode(false); }}
+                            >
+                                {item.label}
+                            </div>
+                        ))}
+                        
+                        <div className="menu-divider" />
+                        
+                        {TOOL_ITEMS.map(item => (
+                            <div
+                                key={item.key}
+                                className={`menu-item ${activeMenu === item.key ? 'active' : ''}`}
+                                onClick={() => { setActiveMenu(item.key); setEditMode(false); }}
+                            >
+                                {item.label}
+                            </div>
+                        ))}
+                    </div>
+
+                    <div className="main-content">
+                        <div className="header-bar">
+                            <Title level={4} style={{ margin: 0 }}>
+                                {t.appTitle}
+                            </Title>
+                            <Space>
+                                <Dropdown
+                                    menu={{
+                                        items: langMenuItems,
+                                        onClick: ({ key }) => switchLang(key),
+                                        selectedKeys: [lang],
+                                    }}
+                                >
+                                    <span className="lang-switch">
+                                        {lang === 'zh' ? '中文' : 'EN'}
+                                    </span>
+                                </Dropdown>
+                                <Tag color="purple">
+                                    {config?.llm?.active_provider?.toUpperCase() || 'N/A'}
+                                </Tag>
+                                <Button onClick={() => setSettingsVisible(true)}>{t.buttons.settings}</Button>
+                                <Button type="primary" onClick={handleExportSoul}>{t.buttons.exportSoul}</Button>
+                            </Space>
+                        </div>
+
+                        <div className="ai-output-area">
+                            <Spin spinning={loading}>
+                                {aiOutput ? (
+                                    <div className="memory-content">{aiOutput}</div>
+                                ) : (
+                                    renderContent()
+                                )}
+                            </Spin>
+                        </div>
+
+                        <div className="control-panel">
+                                    <Select
+                                        value={selectedCategory}
+                                        onChange={setSelectedCategory}
+                                        style={{ width: 160 }}
+                                        options={MENU_ITEMS.map(item => ({ value: item.key, label: item.label }))}
+                                    />
+                                    <Button onClick={handleAskQuestion} loading={loading}>{t.buttons.aiAsk}</Button>
+                                    <Button onClick={handleGenerateMemory} loading={loading}>{t.buttons.generateMemory}</Button>
+                                    <Button onClick={handlePolish} loading={loading}>{t.buttons.polish}</Button>
+                                    <Button onClick={handleGenerateDialogueStyle} loading={loading}>{t.buttons.dialogueStyle}</Button>
+                                    <Button type="primary" onClick={handleSaveMemory}>{t.buttons.saveToCategory}</Button>
+                            {aiOutput && (
+                                <Button onClick={() => setAiOutput('')}>{t.buttons.clearOutput}</Button>
+                            )}
+                        </div>
+
+                        <div className="user-input-area">
+                            <TextArea
+                                value={userInput}
+                                onChange={e => setUserInput(e.target.value)}
+                                placeholder={t.placeholders.inputArea}
+                                rows={4}
+                            />
+                        </div>
+                    </div>
+
+                    <Modal
+                        title={t.settings.title}
+                        open={settingsVisible}
+                        onCancel={() => setSettingsVisible(false)}
+                        footer={null}
+                        className="settings-modal"
+                    >
+                        <Form
+                            initialValues={{ provider: config?.llm?.active_provider }}
+                            onFinish={handleSaveSettings}
+                        >
+                            <Form.Item name="provider" label={t.settings.llmProvider}>
+                                <Radio.Group>
+                                    <Radio value="minimax">MiniMax</Radio>
+                                    <Radio value="openai">OpenAI</Radio>
+                                    <Radio value="anthropic">Anthropic</Radio>
+                                    <Radio value="ollama">Ollama</Radio>
+                                </Radio.Group>
+                            </Form.Item>
+                            <Form.Item>
+                                <Space>
+                                    <Button type="primary" htmlType="submit">{t.buttons.save}</Button>
+                                    <Button onClick={handleTestConnection} loading={loading}>
+                                        {t.buttons.testConnection}
+                                    </Button>
+                                </Space>
+                            </Form.Item>
+                        </Form>
+                        <Divider />
+                        <Paragraph type="secondary">
+                            {t.settings.apiKeyNote}
+                        </Paragraph>
+                    </Modal>
+                </div>
+            );
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>

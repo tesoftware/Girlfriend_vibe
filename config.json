@@ -1,0 +1,73 @@
+{
+  "app": {
+    "port": 4911,
+    "title": "女友工坊"
+  },
+  "soul_name": "于琳琳",
+  "llm": {
+    "active_provider": "minimax",
+    "providers": {
+      "minimax": {
+        "model": "MiniMax-Text-01",
+        "base_url": "https://api.minimaxi.com/v1"
+      },
+      "openai": {
+        "model": "gpt-4o",
+        "base_url": "https://api.openai.com/v1"
+      },
+      "anthropic": {
+        "model": "claude-3-5-sonnet-20241022"
+      },
+      "ollama": {
+        "model": "goekdenizguelmez/JOSIEFIED-Qwen3:8b-fp16",
+        "base_url": "http://192.168.3.41:11434"
+      }
+    }
+  },
+  "memory_files": [
+    {
+      "id": "basic",
+      "name": "基本设定",
+      "file": "basic.md"
+    },
+    {
+      "id": "social",
+      "name": "社会关系",
+      "file": "social_relations.md"
+    },
+    {
+      "id": "experience",
+      "name": "特殊经历",
+      "file": "special_experience.md"
+    },
+    {
+      "id": "daily",
+      "name": "日常琐事",
+      "file": "daily_chores.md"
+    },
+    {
+      "id": "events",
+      "name": "事件记忆",
+      "file": "events.md"
+    },
+    {
+      "id": "preferences",
+      "name": "偏好习惯",
+      "file": "preferences.md"
+    },
+    {
+      "id": "values",
+      "name": "价值观",
+      "file": "values.md"
+    },
+    {
+      "id": "emotions",
+      "name": "情感模式",
+      "file": "emotions.md"
+    }
+  ],
+  "progress": {
+    "last_category": "basic",
+    "completion": {}
+  }
+}

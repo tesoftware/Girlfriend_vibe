@@ -1,0 +1,658 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>和TA聊天</title>
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://unpkg.com/dayjs@1.11.10/dayjs.min.js"></script>
+    <link rel="stylesheet" href="https://unpkg.com/antd@5.12.0/dist/reset.css">
+    <script src="https://unpkg.com/antd@5.12.0/dist/antd.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        html, body, #root {
+            height: 100%;
+            width: 100%;
+            overflow: hidden;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Microsoft YaHei', sans-serif;
+        }
+        .chat-container {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            background: linear-gradient(180deg, #fef6f9 0%, #fff5f8 50%, #fdf2f6 100%);
+        }
+        .chat-header {
+            padding: 16px 20px;
+            background: linear-gradient(135deg, #ff6b9d 0%, #c44569 100%);
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            box-shadow: 0 4px 20px rgba(196, 69, 105, 0.3);
+            flex-shrink: 0;
+        }
+        .chat-header-avatar {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            border: 3px solid rgba(255, 255, 255, 0.4);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            overflow: hidden;
+        }
+        .chat-header-avatar img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        .chat-header-info {
+            flex: 1;
+        }
+        .chat-header-info h4 {
+            margin: 0;
+            font-size: 18px;
+            color: white;
+            font-weight: 600;
+        }
+        .chat-header-status {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            margin-top: 2px;
+        }
+        .chat-header-status p {
+            margin: 0;
+            font-size: 12px;
+            color: rgba(255, 255, 255, 0.85);
+        }
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            background: #4ade80;
+            border-radius: 50%;
+            box-shadow: 0 0 8px rgba(74, 222, 128, 0.6);
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.7; transform: scale(0.9); }
+        }
+        .chat-header-actions {
+            display: flex;
+            gap: 8px;
+        }
+        .chat-header-btn {
+            background: rgba(255, 255, 255, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            color: white;
+            padding: 4px 12px;
+            border-radius: 4px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .chat-header-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+            border-color: rgba(255, 255, 255, 0.5);
+        }
+        .chat-messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+        .chat-messages::-webkit-scrollbar {
+            width: 6px;
+        }
+        .chat-messages::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .chat-messages::-webkit-scrollbar-thumb {
+            background: rgba(196, 69, 105, 0.3);
+            border-radius: 3px;
+        }
+        .chat-messages::-webkit-scrollbar-thumb:hover {
+            background: rgba(196, 69, 105, 0.5);
+        }
+        .chat-date-divider {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 8px 0;
+        }
+        .chat-date-divider span {
+            background: rgba(196, 69, 105, 0.1);
+            color: #c44569;
+            padding: 4px 16px;
+            border-radius: 12px;
+            font-size: 12px;
+        }
+        .chat-message {
+            display: flex;
+            gap: 10px;
+            max-width: 80%;
+            animation: messageIn 0.3s ease-out;
+        }
+        @keyframes messageIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .chat-message.user {
+            align-self: flex-end;
+            flex-direction: row-reverse;
+        }
+        .chat-message.assistant {
+            align-self: flex-start;
+        }
+        .chat-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            flex-shrink: 0;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+            border: 2px solid white;
+        }
+        .chat-avatar img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        .chat-bubble-wrapper {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+        .chat-bubble {
+            padding: 12px 16px;
+            border-radius: 18px;
+            line-height: 1.6;
+            font-size: 14px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+        }
+        .chat-bubble.user {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-bottom-right-radius: 6px;
+        }
+        .chat-bubble.assistant {
+            background: white;
+            color: #333;
+            border-bottom-left-radius: 6px;
+            border: 1px solid rgba(196, 69, 105, 0.1);
+        }
+        .chat-time {
+            font-size: 11px;
+            color: #999;
+            padding: 0 4px;
+        }
+        .chat-message.user .chat-time {
+            text-align: right;
+        }
+        .chat-typing {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            padding: 6px 0;
+        }
+        .chat-typing-dot {
+            width: 7px;
+            height: 7px;
+            background: #c44569;
+            border-radius: 50%;
+            animation: typingBounce 1.4s infinite ease-in-out;
+        }
+        .chat-typing-dot:nth-child(1) { animation-delay: 0s; }
+        .chat-typing-dot:nth-child(2) { animation-delay: 0.2s; }
+        .chat-typing-dot:nth-child(3) { animation-delay: 0.4s; }
+        @keyframes typingBounce {
+            0%, 80%, 100% { transform: scale(0.6); opacity: 0.5; }
+            40% { transform: scale(1); opacity: 1; }
+        }
+        .chat-input-area {
+            display: flex;
+            gap: 12px;
+            padding: 16px 20px;
+            background: white;
+            border-top: 1px solid rgba(196, 69, 105, 0.1);
+            align-items: flex-end;
+            flex-shrink: 0;
+        }
+        .chat-input-wrapper {
+            flex: 1;
+            position: relative;
+        }
+        .chat-input {
+            width: 100%;
+            padding: 12px 16px;
+            border: 2px solid #f0f0f0;
+            border-radius: 24px;
+            font-size: 14px;
+            outline: none;
+            transition: all 0.3s;
+            resize: none;
+            min-height: 46px;
+            max-height: 100px;
+            line-height: 1.5;
+            font-family: inherit;
+        }
+        .chat-input:focus {
+            border-color: #ff6b9d;
+            box-shadow: 0 0 0 3px rgba(255, 107, 157, 0.1);
+        }
+        .chat-input::placeholder {
+            color: #bbb;
+        }
+        .chat-send-btn {
+            width: 46px;
+            height: 46px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #ff6b9d 0%, #c44569 100%);
+            border: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            box-shadow: 0 4px 15px rgba(196, 69, 105, 0.4);
+            flex-shrink: 0;
+        }
+        .chat-send-btn:hover {
+            transform: scale(1.05);
+            box-shadow: 0 6px 20px rgba(196, 69, 105, 0.5);
+        }
+        .chat-send-btn:disabled {
+            opacity: 0.6;
+            transform: none;
+            cursor: not-allowed;
+        }
+        .chat-send-icon {
+            width: 20px;
+            height: 20px;
+            fill: white;
+        }
+        .chat-welcome {
+            text-align: center;
+            padding: 40px 20px;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+        .chat-welcome-avatar {
+            width: 100px;
+            height: 100px;
+            border-radius: 50%;
+            margin: 0 auto 16px;
+            box-shadow: 0 8px 30px rgba(196, 69, 105, 0.4);
+            border: 4px solid white;
+            overflow: hidden;
+        }
+        .chat-welcome-avatar img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        .chat-welcome h3 {
+            font-size: 22px;
+            color: #333;
+            margin-bottom: 6px;
+        }
+        .chat-welcome p {
+            color: #888;
+            font-size: 13px;
+            margin-bottom: 20px;
+        }
+        .chat-welcome-message {
+            background: white;
+            padding: 16px 24px;
+            border-radius: 18px;
+            display: inline-block;
+            max-width: 300px;
+            text-align: left;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+            border: 1px solid rgba(196, 69, 105, 0.1);
+            color: #444;
+            line-height: 1.7;
+            font-size: 14px;
+        }
+        .chat-quick-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            justify-content: center;
+            margin-top: 16px;
+        }
+        .chat-quick-btn {
+            background: white;
+            border: 1px solid rgba(196, 69, 105, 0.3);
+            color: #c44569;
+            border-radius: 18px;
+            padding: 6px 14px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .chat-quick-btn:hover {
+            background: linear-gradient(135deg, #ff6b9d 0%, #c44569 100%);
+            color: white;
+            border-color: transparent;
+        }
+        .loading-spinner {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 2px solid rgba(255,255,255,0.3);
+            border-radius: 50%;
+            border-top-color: white;
+            animation: spin 1s ease-in-out infinite;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        .toast {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0,0,0,0.75);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-size: 14px;
+            z-index: 1000;
+            animation: fadeIn 0.3s ease;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateX(-50%) translateY(-10px); }
+            to { opacity: 1; transform: translateX(-50%) translateY(0); }
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useRef } = React;
+
+        const API_BASE = '';
+
+        function Toast({ message, onClose }) {
+            useEffect(() => {
+                const timer = setTimeout(onClose, 2000);
+                return () => clearTimeout(timer);
+            }, [onClose]);
+            return <div className="toast">{message}</div>;
+        }
+
+        function ChatApp() {
+            const [chatMessages, setChatMessages] = useState([]);
+            const [chatInput, setChatInput] = useState('');
+            const [chatLoading, setChatLoading] = useState(false);
+            const [toast, setToast] = useState(null);
+            const [soulName, setSoulName] = useState('TA');
+            const chatEndRef = useRef(null);
+            const chatInputRef = useRef(null);
+
+            const showToast = (msg) => {
+                setToast(msg);
+            };
+
+            useEffect(() => {
+                if (chatInputRef.current) {
+                    chatInputRef.current.focus();
+                }
+            }, []);
+
+            useEffect(() => {
+                const loadSoulName = async () => {
+                    try {
+                        const res = await fetch(`${API_BASE}/api/soul-name`);
+                        const data = await res.json();
+                        if (data.soul_name && data.soul_name.trim() !== '') {
+                            setSoulName(data.soul_name);
+                        }
+                    } catch (err) {
+                        console.error('Failed to load soul name:', err);
+                    }
+                };
+                loadSoulName();
+            }, []);
+
+            useEffect(() => {
+                if (chatEndRef.current) {
+                    chatEndRef.current.scrollIntoView({ behavior: 'smooth' });
+                }
+            }, [chatMessages, chatLoading]);
+
+            useEffect(() => {
+                if (!chatLoading && chatInputRef.current) {
+                    setTimeout(() => {
+                        if (chatInputRef.current) {
+                            chatInputRef.current.focus();
+                        }
+                    }, 100);
+                }
+            }, [chatLoading]);
+
+            const formatTime = (date) => {
+                const d = date || new Date();
+                return d.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
+            };
+
+            const handleSendChat = async (quickMessage) => {
+                const messageToSend = quickMessage || chatInput.trim();
+                if (!messageToSend) return;
+
+                setChatInput('');
+                const now = new Date();
+                setChatMessages(prev => [...prev, { 
+                    role: 'user', 
+                    content: messageToSend,
+                    time: formatTime(now)
+                }]);
+                setChatLoading(true);
+
+                try {
+                    const res = await fetch(`${API_BASE}/api/chat`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            message: messageToSend,
+                            history: chatMessages,
+                        }),
+                    });
+                    const data = await res.json();
+                    if (data.success) {
+                        setChatMessages(prev => [...prev, { 
+                            role: 'assistant', 
+                            content: data.reply,
+                            time: formatTime(new Date())
+                        }]);
+                    } else {
+                        showToast(data.error || '请求失败');
+                    }
+                } catch (err) {
+                    showToast('请求失败');
+                } finally {
+                    setChatLoading(false);
+                    if (chatInputRef.current) {
+                        chatInputRef.current.focus();
+                    }
+                }
+            };
+
+            const handleClearChat = () => {
+                setChatMessages([]);
+                showToast('聊天记录已清空');
+                if (chatInputRef.current) {
+                    chatInputRef.current.focus();
+                }
+            };
+
+            const handleSaveChat = async () => {
+                if (chatMessages.length === 0) {
+                    showToast('没有聊天记录可保存');
+                    return;
+                }
+
+                try {
+                    const res = await fetch(`${API_BASE}/api/save-chat`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ messages: chatMessages }),
+                    });
+                    const data = await res.json();
+                    if (data.success) {
+                        showToast(`已保存: ${data.filename}`);
+                    } else {
+                        showToast(data.error || '保存失败');
+                    }
+                } catch (err) {
+                    showToast('保存失败');
+                }
+            };
+
+            const handleChatKeyDown = (e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    handleSendChat();
+                }
+            };
+
+            return (
+                <div className="chat-container">
+                    {toast && <Toast message={toast} onClose={() => setToast(null)} />}
+                    
+                    <div className="chat-header">
+                        <div className="chat-header-avatar">
+                            <img src="/xiaoyu.jpg" alt="Xiaoyu" />
+                        </div>
+                        <div className="chat-header-info">
+                            <h4>{soulName}</h4>
+                            <div className="chat-header-status">
+                                <span className="status-dot"></span>
+                                <p>在线</p>
+                            </div>
+                        </div>
+                        <div className="chat-header-actions">
+                            <button className="chat-header-btn" onClick={handleSaveChat}>
+                                保存记录
+                            </button>
+                            <button className="chat-header-btn" onClick={handleClearChat}>
+                                清空聊天
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div className="chat-messages">
+                        {chatMessages.length === 0 ? (
+                            <div className="chat-welcome">
+                                <div className="chat-welcome-avatar">
+                                    <img src="/xiaoyu.jpg" alt="Xiaoyu" />
+                                </div>
+                                <h3>和TA聊天</h3>
+                                <p>她一直在等你哦</p>
+                                <div className="chat-welcome-message">
+                                    亲爱的，你来啦~ 今天想和我聊点什么呀？
+                                </div>
+                                <div className="chat-quick-actions">
+                                    <button className="chat-quick-btn" onClick={() => handleSendChat(`${soulName}，你好呀~`)}>
+                                        打个招呼
+                                    </button>
+                                    <button className="chat-quick-btn" onClick={() => handleSendChat('我想你了')}>
+                                        我想你了
+                                    </button>
+                                    <button className="chat-quick-btn" onClick={() => handleSendChat('你在干嘛呢？')}>
+                                        你在干嘛
+                                    </button>
+                                    <button className="chat-quick-btn" onClick={() => handleSendChat('我爱你')}>
+                                        我爱你
+                                    </button>
+                                </div>
+                            </div>
+                        ) : (
+                            <>
+                                <div className="chat-date-divider">
+                                    <span>{new Date().toLocaleDateString('zh-CN', { month: 'long', day: 'numeric' })}</span>
+                                </div>
+                                {chatMessages.map((msg, idx) => (
+                                    <div key={idx} className={`chat-message ${msg.role}`}>
+                                        <div className="chat-avatar">
+                                            <img src={msg.role === 'user' ? '/me.jpg' : '/xiaoyu.jpg'} alt={msg.role === 'user' ? 'Me' : 'Xiaoyu'} />
+                                        </div>
+                                        <div className="chat-bubble-wrapper">
+                                            <div className={`chat-bubble ${msg.role}`}>{msg.content}</div>
+                                            <span className="chat-time">{msg.time}</span>
+                                        </div>
+                                    </div>
+                                ))}
+                            </>
+                        )}
+                        
+                        {chatLoading && (
+                            <div className="chat-message assistant">
+                                <div className="chat-avatar">
+                                    <img src="/xiaoyu.jpg" alt="Xiaoyu" />
+                                </div>
+                                <div className="chat-bubble-wrapper">
+                                    <div className="chat-bubble assistant">
+                                        <div className="chat-typing">
+                                            <span className="chat-typing-dot"></span>
+                                            <span className="chat-typing-dot"></span>
+                                            <span className="chat-typing-dot"></span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+                        <div ref={chatEndRef} />
+                    </div>
+                    
+                    <div className="chat-input-area">
+                        <div className="chat-input-wrapper">
+                            <textarea
+                                ref={chatInputRef}
+                                className="chat-input"
+                                value={chatInput}
+                                onChange={e => setChatInput(e.target.value)}
+                                onKeyDown={handleChatKeyDown}
+                                placeholder="说点什么吧..."
+                                disabled={chatLoading}
+                                rows={1}
+                                autoFocus
+                            />
+                        </div>
+                        <button 
+                            className="chat-send-btn"
+                            onClick={() => handleSendChat()}
+                            disabled={chatLoading || !chatInput.trim()}
+                        >
+                            {chatLoading ? (
+                                <span className="loading-spinner"></span>
+                            ) : (
+                                <svg className="chat-send-icon" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                    <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
+                                </svg>
+                            )}
+                        </button>
+                    </div>
+                </div>
+            );
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<ChatApp />);
+    </script>
+</body>
+</html>
